@@ -95,37 +95,7 @@ class HabitController extends Controller
             abort(403);
         }
         $date = $request->input('date', now()->toDateString());
-        $completed = $habit->completed_dates ?? [];
-        if (in_array($date, $completed)) {
-            $completed = array_filter($completed, fn($d) => $d !== $date);
-        } else {
-            $completed[] = $date;
-        }
-        $habit->completed_dates = array_values($completed);
-        // Update streak calculation (simple: count consecutive days ending today)
-        $habit->streak = $this->calculateStreak($habit);
-        $habit->save();
+        $habit->toggleDate($date);
         return Redirect::back();
-    }
-
-    /**
-     * Calculate current streak based on completed_dates.
-     */
-    protected function calculateStreak(Habit $habit): int
-    {
-        if (!$habit->completed_dates) {
-            return 0;
-        }
-        $dates = collect($habit->completed_dates)->sortDesc();
-        $streak = 0;
-        $today = now()->toDateString();
-        $cursor = $today;
-        foreach ($dates as $d) {
-            if ($d === $cursor) {
-                $streak++;
-                $cursor = now()->subDays($streak)->toDateString();
-            }
-        }
-        return $streak;
     }
 }
