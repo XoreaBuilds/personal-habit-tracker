@@ -47,11 +47,21 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Get the habits created by this user.
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function habits()
     {
         return $this->hasMany(Habit::class);
     }
 
+    /**
+     * Get the focus sessions (coding/manual) recorded by this user.
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function focusSessions()
     {
         return $this->hasMany(FocusSession::class);

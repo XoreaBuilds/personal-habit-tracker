@@ -14,6 +14,12 @@ return [
     |
     */
 
+    // config/services.php
+    'wakatime' => [
+        'api_key' => env('WAKATIME_API_KEY'),
+        'base_url' => 'https://wakatime.com/api/v1', // ✅ hardcode here too
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
