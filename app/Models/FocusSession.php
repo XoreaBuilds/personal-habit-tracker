@@ -14,6 +14,8 @@ class FocusSession extends Model
         'habit_id',
         'minutes_completed',
         'completed_at',
+        'source',
+        'date',
     ];
 
     protected $casts = [

@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
+use App\Models\FocusSession;
 
 /**
  * Class WakaTimeService
@@ -147,5 +148,38 @@ class WakaTimeService
                 'completed_at' => now(),
             ]
         );
+    }
+
+    /**
+     * Synchronize the entire past year of WakaTime data for a user.
+     * Use this to populate the heatmap for new users.
+     * 
+     * @param int $userId
+     * @return void
+     */
+    public function syncFullHistory(int $userId): void
+    {
+        if (!$this->hasApiKey())
+            return;
+
+        $summaries = $this->yearSummaries();
+
+        foreach ($summaries as $date => $seconds) {
+            $minutes = (int) round($seconds / 60);
+            
+            if ($minutes > 0) {
+                FocusSession::updateOrCreate(
+                    [
+                        'user_id' => $userId,
+                        'source' => 'wakatime',
+                        'date' => $date,
+                    ],
+                    [
+                        'minutes_completed' => $minutes,
+                        'completed_at' => \Carbon\Carbon::parse($date),
+                    ]
+                );
+            }
+        }
     }
 }
