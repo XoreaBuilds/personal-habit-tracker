@@ -52,7 +52,7 @@ class WakaTimeService
     private function headers(): array
     {
         return [
-            'Authorization' => 'Basic ' . base64_encode($this->apiKey),
+            'Authorization' => 'Basic ' . base64_encode($this->apiKey . ':'),
         ];
     }
 
@@ -62,12 +62,12 @@ class WakaTimeService
      * 
      * @return array
      */
-    public function todayStats(): array
+    public function todayStats(?int $userId = null): array
     {
         if (!$this->hasApiKey())
             return [];
 
-        $userId = Auth::id();
+        $userId = $userId ?? Auth::id();
         return Cache::remember("wakatime_today_{$userId}", 300, function () {
             $res = Http::withHeaders($this->headers())
                 ->get("{$this->baseUrl}/users/current/status_bar/today");
@@ -92,12 +92,12 @@ class WakaTimeService
      * 
      * @return array
      */
-    public function yearSummaries(): array
+    public function yearSummaries(?int $userId = null): array
     {
         if (!$this->hasApiKey())
             return [];
 
-        $userId = Auth::id();
+        $userId = $userId ?? Auth::id();
         return Cache::remember("wakatime_year_{$userId}", 3600, function () {
             $start = now()->subYear()->toDateString();
             $end = now()->toDateString();
@@ -131,7 +131,7 @@ class WakaTimeService
         if (!$this->hasApiKey())
             return;
 
-        $stats = $this->todayStats();
+        $stats = $this->todayStats($userId);
         $minutes = (int) round(($stats['total_seconds'] ?? 0) / 60);
 
         if ($minutes <= 0)
@@ -162,7 +162,7 @@ class WakaTimeService
         if (!$this->hasApiKey())
             return;
 
-        $summaries = $this->yearSummaries();
+        $summaries = $this->yearSummaries($userId);
 
         foreach ($summaries as $date => $seconds) {
             $minutes = (int) round($seconds / 60);

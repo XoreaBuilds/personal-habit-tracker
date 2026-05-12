@@ -60,6 +60,11 @@ $weeklyHabits = computed(function () {
         ->count();
 });
 
+// Real-time WakaTime Stats
+$wakaStats = computed(function () {
+    return app(\App\Services\WakaTimeService::class)->todayStats();
+});
+
 // Current streak (today or yesterday has a session)
 $currentStreak = computed(function () {
     $dates = FocusSession::where('user_id', Auth::id())
@@ -89,18 +94,29 @@ $currentStreak = computed(function () {
 
 ?>
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+
+    {{-- Today's Coding Time (WakaTime) --}}
+    <div class="glass rounded-2xl p-6 flex flex-col gap-2 border-l-4 border-primary">
+        <div class="p-2 rounded-xl bg-primary/10 w-fit">
+            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+        </div>
+        <p class="text-2xl font-bold gradient-text">{{ $this->wakaStats['human_readable'] ?? '0 mins' }}</p>
+        <p class="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Coding Today ({{ $this->wakaStats['top_language'] ?? 'N/A' }})</p>
+    </div>
 
     {{-- Total Focus Hours This Month --}}
     <div class="glass rounded-2xl p-6 flex flex-col gap-2">
-        <div class="p-2 rounded-xl bg-primary/10 w-fit">
-            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="p-2 rounded-xl bg-blue-500/10 w-fit">
+            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
         </div>
-        <p class="text-3xl font-bold gradient-text">{{ $this->monthlyHours }}h</p>
-        <p class="text-xs font-bold uppercase text-gray-500">Focus This Month</p>
+        <p class="text-2xl font-bold gradient-text">{{ $this->monthlyHours }}h</p>
+        <p class="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Total Focus Month</p>
     </div>
 
     {{-- Best Streak Ever --}}
