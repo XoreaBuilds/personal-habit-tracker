@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\FocusSession;
 
 /**
  * Class Habit
@@ -64,7 +65,7 @@ class Habit extends Model
     public function toggleDate($date)
     {
         $completed = $this->completed_dates ?? [];
-        
+
         if (in_array($date, $completed)) {
             // Remove date if it exists
             $completed = array_filter($completed, fn($d) => $d !== $date);
@@ -72,7 +73,7 @@ class Habit extends Model
             // Add date if it doesn't exist
             $completed[] = $date;
         }
-        
+
         $this->completed_dates = array_values($completed);
         $this->streak = $this->calculateStreak();
         $this->save();
@@ -103,7 +104,7 @@ class Habit extends Model
 
         // Start checking from today if completed, otherwise start from yesterday
         $checkDate = $dates->contains($today) ? now() : now()->subDay();
-        
+
         while ($dates->contains($checkDate->toDateString())) {
             $streak++;
             $checkDate->subDay();

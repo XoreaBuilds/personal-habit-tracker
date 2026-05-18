@@ -4,10 +4,12 @@ use function Livewire\Volt\{state, computed, on};
 use App\Models\Habit;
 use App\Models\FocusSession;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 state([
     'timeLeft' => 25 * 60,
     'isActive' => false,
+    'timerEndsAt' => null,
     'mode' => 'focus', // focus, short_break, long_break
     'selectedHabitId' => null,
     'totalMinutesCompleted' => 0,
@@ -29,6 +31,9 @@ $startTimer = function () {
         return;
     }
     $this->isActive = true;
+
+    // TimerStartEndsAt
+    $this->timerEndsAt = now()->addSeconds($this->timeLeft)->toIso8601String();
 };
 
 $pauseTimer = function () {
@@ -76,11 +81,21 @@ $cancelEditing = function () {
     $this->isEditingTimer = false;
 };
 
+
+// Ito ay tatakbo bawat 1 segundo dahil sa wire:poll.1s
 $tick = function () {
-    if ($this->isActive && $this->timeLeft > 0) {
-        $this->timeLeft--;
-    } elseif ($this->isActive && $this->timeLeft === 0) {
+    if (!$this->isActive || !$this->timerEndsAt) {
+        return;
+    }
+
+    $endTime = Carbon::parse($this->timerEndsAt);
+    
+    // Alamin ang agwat ng totoong oras ngayon sa target na end time
+    if (now()->greaterThanOrEqualTo($endTime)) {
+        $this->timeLeft = 0;
         $this->completeSession();
+    } else {
+        $this->timeLeft = now()->diffInSeconds($endTime, false);
     }
 };
 
@@ -117,7 +132,7 @@ $completeSession = function () {
 
 ?>
 
-<div wire:poll.1s="tick">
+<div wire:poll.1s.keep-alive="tick">
     {{-- Mini floating pill version --}}
     @if($isMinimized)
         <div class="fixed bottom-6 right-6 z-50 bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-56 overflow-hidden">
