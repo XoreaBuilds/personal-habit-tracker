@@ -1,6 +1,6 @@
 <?php
 
-use function Livewire\Volt\{computed, state};
+use function Livewire\Volt\{computed, state, on};
 use App\Services\WakaTimeService;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,6 +14,7 @@ $saveApiKey = function () {
     if ($user = Auth::user()) {
         $user->update(['wakatime_api_key' => $this->apiKeyInput]);
         $this->apiKeyInput = '';
+        $this->dispatch('stats-updated');
     } else {
         session()->flash('error', 'You must be logged in to save your API key.');
     }
@@ -72,9 +73,13 @@ $months = computed(function () {
     return $months;
 });
 
+on([
+    'stats-updated' => function () {}
+]);
+
 ?>
 
-<div class="space-y-6">
+<div class="space-y-6" wire:poll.300s>
 
     @if(!$this->hasKey)
         <div class="glass rounded-3xl p-12 text-center">

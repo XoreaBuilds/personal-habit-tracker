@@ -40,6 +40,15 @@ Schedule::call(function () {
 })->dailyAt('23:55');
 
 /**
+ * Scheduled Task: Weekly Habit Cycle Reset
+ * 
+ * Runs every Monday at midnight. Evaluates all habits against their
+ * weekly frequency target, updates streaks, archives completed weeks,
+ * and clears completed_dates for the new cycle.
+ */
+Schedule::command('habits:weekly-reset')->weeklyOn(1, '00:00');
+
+/**
  * Command: php artisan wakatime:sync-all
  * Manually triggers a full year synchronization for all users with API keys.
  */

@@ -11,11 +11,24 @@ class HabitController extends Controller
 {
     /**
      * Display a listing of the user's habits.
+     * 
+     * Triggers a lazy weekly reset check on each habit to ensure
+     * streaks and completed_dates are current, even if the scheduler
+     * was missed (e.g., server was down over Monday midnight).
      */
     public function index()
     {
         $userId = Auth::id();
         $habits = Habit::when($userId, fn($q) => $q->where('user_id', $userId))->get();
+
+        // Lazy reset guard — ensures weekly cycle is current
+        foreach ($habits as $habit) {
+            $habit->checkAndResetWeekIfNeeded();
+        }
+
+        // Re-fetch to get freshly updated data
+        $habits = Habit::when($userId, fn($q) => $q->where('user_id', $userId))->get();
+
         return view('habits.index', compact('habits'));
     }
 
@@ -87,15 +100,51 @@ class HabitController extends Controller
     }
 
     /**
-     * Toggle completion for a habit on a given date (default today).
+     * Toggle completion for a habit on a given date.
+     * 
+     * After toggling, checks if all 7 days of the current week are now
+     * completed. If so, archives the week, increments the streak,
+     * and redirects with a success message.
      */
     public function toggle(Request $request, Habit $habit)
     {
         if (Auth::id() && $habit->user_id !== Auth::id()) {
             abort(403);
         }
-        $date = $request->input('date', now()->toDateString());
+
+        $date = $request->input('date', today()->toDateString());
         $habit->toggleDate($date);
+
+        // Check if all 7 days this week are now completed
+        $weekStart = now()->startOfWeek()->toDateString();
+        $weekEnd = now()->endOfWeek()->toDateString();
+
+        $thisWeekDates = collect($habit->completed_dates ?? [])
+            ->filter(fn($d) => $d >= $weekStart && $d <= $weekEnd)
+            ->values();
+
+        // Generate all 7 day strings for this week
+        $allSevenDays = collect(range(0, 6))
+            ->map(fn($i) => now()->startOfWeek()->addDays($i)->toDateString());
+
+        $allChecked = $allSevenDays->every(
+            fn($day) => $thisWeekDates->contains($day)
+        );
+
+        if ($allChecked) {
+            // Increment streak before archiving
+            $habit->streak = $habit->streak + 1;
+            $habit->save();
+
+            // Archive and clear the week
+            $habit->archiveAndResetWeek();
+
+            return Redirect::back()->with([
+                'success' => true,
+                'message' => '🏆 Perfect week archived! Starting fresh. Streak: ' . $habit->streak,
+            ]);
+        }
+
         return Redirect::back();
     }
 }

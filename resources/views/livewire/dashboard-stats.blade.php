@@ -1,15 +1,17 @@
 <?php
 /**
  * DashboardStats - Livewire Volt Component
- * 
  * Provides real-time statistics for the user dashboard, including focus hours,
  * habit completion counts, and streak tracking.
  */
 
-use function Livewire\Volt\{computed};
+// FIXED: Added 'on' to the imported functions array below
+use function Livewire\Volt\{computed, on};
 use App\Models\FocusSession;
 use App\Models\Habit;
 use Illuminate\Support\Facades\Auth;
+
+// --- COMPUTED PROPERTIES ---
 
 // Total focus hours this month
 $monthlyHours = computed(function () {
@@ -33,6 +35,10 @@ $bestStreak = computed(function () {
     $best = 0;
     $current = 1;
 
+    if ($dates->count() === 0) {
+        return 0;
+    }
+
     for ($i = 1; $i < $dates->count(); $i++) {
         $prev = \Carbon\Carbon::parse($dates[$i - 1]);
         $curr = \Carbon\Carbon::parse($dates[$i]);
@@ -40,12 +46,12 @@ $bestStreak = computed(function () {
         if ($prev->diffInDays($curr) === 1) {
             $current++;
             $best = max($best, $current);
-        } else {
+        } else if ($prev->diffInDays($curr) > 1) {
             $current = 1;
         }
     }
 
-    return max($best, $dates->count() > 0 ? 1 : 0);
+    return max($best, $current);
 });
 
 // Total habits completed this week
@@ -74,11 +80,21 @@ $currentStreak = computed(function () {
         ->unique()
         ->values();
 
-    if ($dates->isEmpty())
+    if ($dates->isEmpty()) {
         return 0;
+    }
 
     $streak = 0;
-    $checkDay = now()->toDateString();
+    $today = now()->toDateString();
+    $yesterday = now()->subDay()->toDateString();
+
+    if ($dates[0] === $today) {
+        $checkDay = $today;
+    } elseif ($dates[0] === $yesterday) {
+        $checkDay = $yesterday;
+    } else {
+        return 0; // Streak broken
+    }
 
     foreach ($dates as $date) {
         if ($date === $checkDay) {
@@ -92,67 +108,25 @@ $currentStreak = computed(function () {
     return $streak;
 });
 
+// Calculate how many habits have met their frequency target this week
+$habitsPerfectCount = computed(function () {
+    $startOfWeek = now()->startOfWeek()->toDateString();
+    $endOfWeek = now()->endOfWeek()->toDateString();
+
+    return auth()->user()->habits->filter(function ($habit) use ($startOfWeek, $endOfWeek) {
+        $completionsThisWeek = collect($habit->completed_dates ?? [])
+            ->filter(fn($date) => $date >= $startOfWeek && $date <= $endOfWeek)
+            ->count();
+
+        return $completionsThisWeek >= $habit->frequency;
+    })->count();
+});
+
+// Now this works perfectly because 'on' is explicitly imported!
+on([
+    'stats-updated' => function () { },
+    'session-completed' => function () { },
+    'habit-toggled' => function () { }
+]);
+
 ?>
-
-<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-
-    {{-- Today's Coding Time (WakaTime) --}}
-    <div class="glass rounded-2xl p-6 flex flex-col gap-2 border-l-4 border-primary">
-        <div class="p-2 rounded-xl bg-primary/10 w-fit">
-            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-        </div>
-        <p class="text-2xl font-bold gradient-text">{{ $this->wakaStats['human_readable'] ?? '0 mins' }}</p>
-        <p class="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Coding Today ({{ $this->wakaStats['top_language'] ?? 'N/A' }})</p>
-    </div>
-
-    {{-- Total Focus Hours This Month --}}
-    <div class="glass rounded-2xl p-6 flex flex-col gap-2">
-        <div class="p-2 rounded-xl bg-blue-500/10 w-fit">
-            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        </div>
-        <p class="text-2xl font-bold gradient-text">{{ $this->monthlyHours }}h</p>
-        <p class="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Total Focus Month</p>
-    </div>
-
-    {{-- Best Streak Ever --}}
-    <div class="glass rounded-2xl p-6 flex flex-col gap-2">
-        <div class="p-2 rounded-xl bg-accent/10 w-fit">
-            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-            </svg>
-        </div>
-        <p class="text-3xl font-bold gradient-text">{{ $this->bestStreak }}</p>
-        <p class="text-xs font-bold uppercase text-gray-500">Best Streak (days)</p>
-    </div>
-
-    {{-- Habits This Week --}}
-    <div class="glass rounded-2xl p-6 flex flex-col gap-2">
-        <div class="p-2 rounded-xl bg-secondary/10 w-fit">
-            <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-        </div>
-        <p class="text-3xl font-bold gradient-text">{{ $this->weeklyHabits }}</p>
-        <p class="text-xs font-bold uppercase text-gray-500">Habits This Week</p>
-    </div>
-
-    {{-- Current Streak --}}
-    <div class="glass rounded-2xl p-6 flex flex-col gap-2">
-        <div class="p-2 rounded-xl bg-green-500/10 w-fit">
-            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-        </div>
-        <p class="text-3xl font-bold gradient-text">{{ $this->currentStreak }}</p>
-        <p class="text-xs font-bold uppercase text-gray-500">Current Streak (days)</p>
-    </div>
-
-</div>
